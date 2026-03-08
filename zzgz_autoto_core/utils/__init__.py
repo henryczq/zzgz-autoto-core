@@ -142,4 +142,11 @@ def get_user_data_dir(platform: str = "xhs") -> Path:
     return get_skill_dir() / "scripts" / f".browser_data{suffix}"
 
 
+# 导出 OpenClaw 消息相关类
+try:
+    from .openclaw_messaging import OpenClawMessenger, OpenClawNotifier
+    __all__ = ['OpenClawMessenger', 'OpenClawNotifier']
+except ImportError:
+    __all__ = []
+
 
