@@ -405,6 +405,22 @@ class OpenClawNotifier:
         message = f"✅ 审核通过！\n\n📌 标题: {title[:50]}{'...' if len(title) > 50 else ''}\n🔗 {note_url}"
         return self.messenger.send_text_safe(message)
 
+    def notify_success(self, title: str, url: str = None) -> tuple[bool, str]:
+        """
+        通知发布成功
+        
+        Args:
+            title: 发布标题
+            url: 可选的发布链接
+        
+        Returns:
+            tuple: (是否成功, 状态消息)
+        """
+        message = f"✅ {self.platform_name}发布成功！\n\n📌 标题: {title[:50]}{'...' if len(title) > 50 else ''}"
+        if url:
+            message += f"\n🔗 {url}"
+        return self.messenger.send_text_safe(message)
+
     def notify_failure(self, title: str, reason: str) -> tuple[bool, str]:
         message = (
             f"❌ {self.platform_name}发布失败！\n\n"
