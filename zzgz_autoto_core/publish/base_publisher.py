@@ -13,8 +13,7 @@ from playwright.sync_api import sync_playwright
 
 from ..core.data import load_article_payload
 from ..core.platform_config import get_platform_config
-from ..utils._shared import process_image_paths
-from ..utils import configure_stdio_utf8, configure_logging, get_user_data_dir
+from ..utils import configure_stdio_utf8, configure_logging, get_user_data_dir, process_image_paths
 
 
 class BasePublisher(ABC):

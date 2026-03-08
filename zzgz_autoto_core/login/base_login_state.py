@@ -281,6 +281,12 @@ class BaseLoginStateManager(ABC):
     def parse_args(cls):
         """解析命令行参数"""
         parser = argparse.ArgumentParser(description=f'{cls.__name__.replace("LoginStateManager", "")}登录状态管理工具')
+        parser.add_argument('--channel', type=str, default=None,
+                           help='消息渠道 (如: feishu, telegram)')
+        parser.add_argument('--target', type=str, default=None,
+                           help='目标用户ID (如: user:xxx, telegram:xxx)')
+        parser.add_argument('--account', type=str, default=None,
+                           help='账号ID')
         parser.add_argument('--headless', action='store_true', default=True,
                            help='使用无头模式运行（默认启用）')
         parser.add_argument('--no-headless', action='store_true',
@@ -315,7 +321,27 @@ class BaseLoginStateManager(ABC):
             return
         
         # 执行登录状态查询和验证
-        await instance.query_login_state()
+        is_valid = await instance.query_login_state()
+        
+        # 如果有 channel 和 target，发送结果通知
+        if args.channel and args.target:
+            try:
+                from ..utils.openclaw_messaging import OpenClawMessenger
+                messenger = OpenClawMessenger(
+                    channel=args.channel,
+                    target=args.target,
+                    account=args.account
+                )
+                
+                if is_valid:
+                    notification = f"✅ {platform_name}登录状态有效"
+                else:
+                    notification = f"❌ {platform_name}登录状态无效\n请重新登录"
+                
+                messenger.send_text(notification)
+                print(f"\n📤 已发送通知到 {args.channel}:{args.target}")
+            except Exception as e:
+                print(f"\n⚠️ 发送通知失败: {e}")
 
 
 # ==================== 便捷函数 ====================
