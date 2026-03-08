@@ -2,17 +2,17 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright, Error as PlaywrightError
 
-from core.data import (
+from ..core.data import (
     ensure_test_placeholder,
     is_url,
     load_article_payload,
     save_article_payload,
 )
-from core.ui import _fill_richtext, _ui_settle
-from core.platform_config import get_platform_config
-from platforms.xhs.flow_publish import publish_to_xhs
-from sources.web_scraper import scrape_web_article
-from utils import (
+from ..core.ui import _fill_richtext, _ui_settle
+from ..core.platform_config import get_platform_config
+from ..platforms.xhs.flow_publish import publish_to_xhs
+from ..sources.web_scraper import scrape_web_article
+from . import (
     get_skill_dir,
     get_data_dir,
     get_auth_state_path,

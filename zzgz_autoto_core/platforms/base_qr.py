@@ -178,7 +178,7 @@ class BaseQrCapturer(ABC):
             await self.cleanup()
             return {'success': False, 'error': str(e)}
     
-    async def wait_for_login(self, auth_path: str, max_wait_time: int = 300, check_interval: int = 5) -> dict:
+    async def wait_for_login(self, auth_path: str, max_wait_time: int = 300, check_interval: int = 5, status_dir: str = None) -> dict:
         """
         等待用户扫码登录
         
@@ -186,6 +186,7 @@ class BaseQrCapturer(ABC):
             auth_path: 登录态保存路径
             max_wait_time: 最大等待时间（秒）
             check_interval: 检查间隔（秒）
+            status_dir: 状态文件保存目录（可选）
         
         Returns:
             dict: 包含 success, auth_path 等信息
