@@ -25,7 +25,8 @@ class OpenClawMessenger:
         # 方式 1: 直接传入参数
         messenger = OpenClawMessenger(
             channel="feishu",
-            user_id="ou_xxxxxx"
+            target="ou_xxxxxx",
+            account="8606699467"  # 可选
         )
         messenger.send_text("Hello!")
         messenger.send_image("/path/to/qr.png", "请扫码")
@@ -33,6 +34,14 @@ class OpenClawMessenger:
         # 方式 2: 从环境变量自动读取
         messenger = OpenClawMessenger.from_env()
         messenger.send_text("自动读取配置")
+        
+        # 方式 3: 从 Inbound Context (trusted metadata) 读取
+        inbound_meta = {
+            "channel": "telegram",
+            "chat_id": "telegram:5747692163",
+            "account_id": "8606699467"
+        }
+        messenger = OpenClawMessenger.from_inbound_meta(inbound_meta)
     """
     
     # 支持的消息渠道
@@ -40,22 +49,25 @@ class OpenClawMessenger:
     
     def __init__(self, 
                  channel: Optional[str] = None,
-                 user_id: Optional[str] = None,
+                 target: Optional[str] = None,
+                 account: Optional[str] = None,
                  session_key: Optional[str] = None):
         """
         初始化消息发送器
         
         Args:
             channel: 消息渠道 (feishu/wechat/telegram等)
-            user_id: 用户ID (如飞书的 ou_xxxxxx)
+            target: 目标用户ID (如飞书的 ou_xxxxxx, telegram:5747692163)
+            account: 可选的账号ID (如 8606699467)
             session_key: 可选的会话密钥
         """
         log("debug", f"[OpenClawMessenger] 初始化开始...")
-        log("debug", f"[OpenClawMessenger] 传入参数: channel={channel}, user_id={user_id}, session_key={session_key}")
+        log("debug", f"[OpenClawMessenger] 传入参数: channel={channel}, target={target}, account={account}, session_key={session_key}")
         self.channel = channel
-        self.user_id = user_id
+        self.target = target
+        self.account = account
         self.session_key = session_key
-        log("debug", f"[OpenClawMessenger] 初始化完成: channel={self.channel}, user_id={self.user_id}")
+        log("debug", f"[OpenClawMessenger] 初始化完成: channel={self.channel}, target={self.target}, account={self.account}")
         
     @classmethod
     def from_env(cls, prefix: str = "OPENCLAW") -> "OpenClawMessenger":
@@ -64,7 +76,8 @@ class OpenClawMessenger:
         
         读取以下环境变量:
         - {prefix}_CHANNEL (默认: feishu)
-        - {prefix}_USER_ID (必需)
+        - {prefix}_TARGET (必需)
+        - {prefix}_ACCOUNT (可选)
         - {prefix}_SESSION_KEY (可选)
         
         Args:
@@ -74,36 +87,90 @@ class OpenClawMessenger:
             OpenClawMessenger 实例
         
         Raises:
-            ValueError: 如果缺少必需的 USER_ID
+            ValueError: 如果缺少必需的 TARGET
         
         示例:
             # 设置环境变量
             export OPENCLAW_CHANNEL=feishu
-            export OPENCLAW_USER_ID=ou_xxxxxx
+            export OPENCLAW_TARGET=ou_xxxxxx
+            export OPENCLAW_ACCOUNT=8606699467
             
             # 代码中使用
             messenger = OpenClawMessenger.from_env()
         """
         channel = os.getenv(f"{prefix}_CHANNEL", "feishu")
-        user_id = os.getenv(f"{prefix}_USER_ID")
+        target = os.getenv(f"{prefix}_TARGET")
+        account = os.getenv(f"{prefix}_ACCOUNT")
         session_key = os.getenv(f"{prefix}_SESSION_KEY")
         
-        if not user_id:
+        if not target:
             raise ValueError(
-                f"缺少必需的环境变量: {prefix}_USER_ID\n"
-                f"请设置: export {prefix}_USER_ID=your_user_id"
+                f"缺少必需的环境变量: {prefix}_TARGET\n"
+                f"请设置: export {prefix}_TARGET=your_target_id"
             )
         
         return cls(
             channel=channel,
-            user_id=user_id,
+            target=target,
+            account=account,
             session_key=session_key
         )
     
+    @classmethod
+    def from_inbound_meta(cls, inbound_meta: Dict[str, Any]) -> "OpenClawMessenger":
+        """
+        从 OpenClaw Inbound Context (trusted metadata) 创建实例
+        
+        Inbound Meta JSON 格式:
+        {
+            "schema": "openclaw.inbound_meta.v1",
+            "chat_id": "telegram:5747692163",      # -> target
+            "account_id": "8606699467",              # -> account (可选)
+            "channel": "telegram",                   # -> channel
+            "provider": "telegram",
+            "surface": "telegram",
+            "chat_type": "direct"
+        }
+        
+        Args:
+            inbound_meta: OpenClaw 传入的 trusted metadata dict
+        
+        Returns:
+            OpenClawMessenger 实例
+        
+        Raises:
+            ValueError: 如果缺少必需的字段
+        
+        示例:
+            inbound_meta = {
+                "channel": "telegram",
+                "chat_id": "telegram:5747692163",
+                "account_id": "8606699467"
+            }
+            messenger = OpenClawMessenger.from_inbound_meta(inbound_meta)
+        """
+        # 从 inbound_meta 提取字段
+        channel = inbound_meta.get("channel")
+        target = inbound_meta.get("chat_id")  # chat_id 对应 target
+        account = inbound_meta.get("account_id")  # account_id 是可选的
+        
+        if not channel:
+            raise ValueError("inbound_meta 缺少必需的字段: channel")
+        if not target:
+            raise ValueError("inbound_meta 缺少必需的字段: chat_id (映射为 target)")
+        
+        log("debug", f"[OpenClawMessenger] 从 inbound_meta 创建: channel={channel}, target={target}, account={account}")
+        
+        return cls(
+            channel=channel,
+            target=target,
+            account=account
+        )
+        
     def is_ready(self) -> bool:
-        """检查是否可以发送消息（需要 channel 和 user_id）"""
-        ready = self.channel is not None and self.user_id is not None
-        log("debug", f"[OpenClawMessenger] is_ready检查: channel={self.channel}, user_id={self.user_id}, ready={ready}")
+        """检查是否可以发送消息（需要 channel 和 target）"""
+        ready = self.channel is not None and self.target is not None
+        log("debug", f"[OpenClawMessenger] is_ready检查: channel={self.channel}, target={self.target}, ready={ready}")
         return ready
     
     def _build_cmd(self, text: str, image_path: Optional[str] = None) -> str:
@@ -119,19 +186,26 @@ class OpenClawMessenger:
         # 2. 转义双引号防止命令截断
         safe_text = text.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n')
         
-        # 构建命令
-        if is_windows:
-            # Windows: 使用 CMD 直接传递
-            cmd = f'openclaw message send --channel {self.channel} -t {self.user_id} -m "{safe_text}"'
-            if image_path and Path(image_path).exists():
-                resolved_path = str(Path(image_path).resolve())
-                cmd += f' --media "{resolved_path}"'
-        else:
-            # Linux/macOS
-            cmd = f'openclaw message send --channel {self.channel} -t {self.user_id} -m "{safe_text}"'
-            if image_path and Path(image_path).exists():
-                resolved_path = str(Path(image_path).resolve())
-                cmd += f' --media "{resolved_path}"'
+        # 构建命令 - 使用新的参数名
+        cmd_parts = [
+            "openclaw",
+            "message",
+            "send",
+            f"--channel {self.channel}",
+            f"--target {self.target}",
+            f'-m "{safe_text}"'
+        ]
+        
+        # 添加可选的 account 参数
+        if self.account:
+            cmd_parts.append(f"--account {self.account}")
+        
+        # 添加图片
+        if image_path and Path(image_path).exists():
+            resolved_path = str(Path(image_path).resolve())
+            cmd_parts.append(f'--media "{resolved_path}"')
+        
+        cmd = " ".join(cmd_parts)
         
         # 将命令写入文件以便调试
         debug_file = Path("last_openclaw_cmd.txt")
@@ -158,7 +232,7 @@ class OpenClawMessenger:
         """
         log("debug", f"[OpenClawMessenger] send_text开始: text={text[:50]}...")
         if not self.is_ready():
-            log("error", f"❌ 消息发送器未就绪: channel={self.channel}, user_id={self.user_id}")
+            log("error", f"❌ 消息发送器未就绪: channel={self.channel}, target={self.target}")
             return False
         
         cmd = self._build_cmd(text)
@@ -182,7 +256,7 @@ class OpenClawMessenger:
         """
         log("debug", f"[OpenClawMessenger] send_image开始: image_path={image_path}, caption={caption[:30]}...")
         if not self.is_ready():
-            log("error", f"❌ 消息发送器未就绪: channel={self.channel}, user_id={self.user_id}")
+            log("error", f"❌ 消息发送器未就绪: channel={self.channel}, target={self.target}")
             return False
         
         if not Path(image_path).exists():
@@ -253,7 +327,7 @@ class OpenClawMessenger:
         """
         # 检查发送器是否就绪
         if not self.is_ready():
-            return False, f"消息发送器未就绪: channel={self.channel}, user_id={self.user_id}"
+            return False, f"消息发送器未就绪: channel={self.channel}, target={self.target}"
         
         # 检查图片文件
         if not Path(image_path).exists():
@@ -282,7 +356,7 @@ class OpenClawMessenger:
         """
         # 检查发送器是否就绪
         if not self.is_ready():
-            return False, f"消息发送器未就绪: channel={self.channel}, user_id={self.user_id}"
+            return False, f"消息发送器未就绪: channel={self.channel}, target={self.target}"
         
         # 尝试发送
         try:
@@ -299,12 +373,13 @@ class OpenClawNotifier:
     def __init__(
         self,
         channel: Optional[str] = None,
-        user_id: Optional[str] = None,
+        target: Optional[str] = None,
+        account: Optional[str] = None,
         session_key: Optional[str] = None,
         platform_name: Optional[str] = None,
     ):
         self.platform_name = platform_name or ""
-        self.messenger = OpenClawMessenger(channel=channel, user_id=user_id, session_key=session_key)
+        self.messenger = OpenClawMessenger(channel=channel, target=target, account=account, session_key=session_key)
 
     def is_ready(self) -> bool:
         return self.messenger.is_ready()
@@ -351,7 +426,8 @@ class OpenClawNotifier:
 def send_notification(text: str, 
                        image_path: Optional[str] = None,
                        channel: Optional[str] = None,
-                       user_id: Optional[str] = None) -> bool:
+                       target: Optional[str] = None,
+                       account: Optional[str] = None) -> bool:
     """
     快速发送通知（便捷函数）
     
@@ -361,7 +437,8 @@ def send_notification(text: str,
         text: 消息文本
         image_path: 可选，图片路径
         channel: 可选，覆盖环境变量的渠道
-        user_id: 可选，覆盖环境变量的用户ID
+        target: 可选，覆盖环境变量的目标用户ID
+        account: 可选，覆盖环境变量的账号ID
     
     Returns:
         是否发送成功
@@ -374,20 +451,22 @@ def send_notification(text: str,
         send_notification("请扫码", "/path/to/qr.png")
         
         # 方式 3: 覆盖默认配置
-        send_notification("Hello", channel="telegram", user_id="123456")
+        send_notification("Hello", channel="telegram", target="123456", account="8606699467")
     """
     try:
         # 优先使用传入的参数，否则从环境变量读取
         final_channel = channel or os.getenv("OPENCLAW_CHANNEL", "feishu")
-        final_user_id = user_id or os.getenv("OPENCLAW_USER_ID")
+        final_target = target or os.getenv("OPENCLAW_TARGET")
+        final_account = account or os.getenv("OPENCLAW_ACCOUNT")
         
-        if not final_user_id:
-            log("error", "❌ send_notification: 未提供 user_id，且未设置 OPENCLAW_USER_ID 环境变量")
+        if not final_target:
+            log("error", "❌ send_notification: 未提供 target，且未设置 OPENCLAW_TARGET 环境变量")
             return False
         
         messenger = OpenClawMessenger(
             channel=final_channel,
-            user_id=final_user_id
+            target=final_target,
+            account=final_account
         )
         
         if image_path:
@@ -407,14 +486,31 @@ if __name__ == "__main__":
     # 测试 1: 从环境变量创建
     try:
         messenger = OpenClawMessenger.from_env()
-        log("info", f"✅ From env: channel={messenger.channel}, user_id={messenger.user_id}")
+        log("info", f"✅ From env: channel={messenger.channel}, target={messenger.target}, account={messenger.account}")
     except ValueError as e:
         log("warn", f"⚠️  From env failed: {e}")
     
     # 测试 2: 直接传入参数
     messenger2 = OpenClawMessenger(
         channel="feishu",
-        user_id="ou_test123"
+        target="ou_test123",
+        account="8606699467"
     )
-    log("info", f"✅ Direct: channel={messenger2.channel}, user_id={messenger2.user_id}")
+    log("info", f"✅ Direct: channel={messenger2.channel}, target={messenger2.target}, account={messenger2.account}")
     log("info", f"✅ is_ready: {messenger2.is_ready()}")
+    
+    # 测试 3: 从 inbound_meta 创建
+    try:
+        inbound_meta = {
+            "schema": "openclaw.inbound_meta.v1",
+            "chat_id": "telegram:5747692163",
+            "account_id": "8606699467",
+            "channel": "telegram",
+            "provider": "telegram",
+            "surface": "telegram",
+            "chat_type": "direct"
+        }
+        messenger3 = OpenClawMessenger.from_inbound_meta(inbound_meta)
+        log("info", f"✅ From inbound_meta: channel={messenger3.channel}, target={messenger3.target}, account={messenger3.account}")
+    except ValueError as e:
+        log("warn", f"⚠️  From inbound_meta failed: {e}")

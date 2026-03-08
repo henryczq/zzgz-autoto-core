@@ -58,6 +58,17 @@ UI 交互工具
 - `process_image_paths()` - 处理图片路径
 - `resolve_cover_image()` - 解析封面图片
 
+### `utils/openclaw_messaging.py`
+OpenClaw 消息发送工具
+- `OpenClawMessenger` - 消息发送器类
+  - `__init__(channel, target, account, session_key)` - 初始化
+  - `from_env()` - 从环境变量创建
+  - `from_inbound_meta()` - 从 Inbound Context 创建
+  - `send_text()` / `send_text_safe()` - 发送文本
+  - `send_image()` / `send_image_safe()` - 发送图片
+- `OpenClawNotifier` - 通知器类
+- `send_notification()` - 快速发送通知
+
 ## 目录结构
 
 ```
@@ -110,4 +121,47 @@ from zzgz_autoto_core import load_article_payload, download_image, get_platform_
 # 获取平台配置
 config = get_platform_config("xhs")
 print(f"标题限制: {config.limits.title_max_length}")
+```
+
+### OpenClawMessenger 使用示例
+
+```python
+from zzgz_autoto_core.utils.openclaw_messaging import OpenClawMessenger, OpenClawNotifier
+
+# 方式1: 直接传入参数
+messenger = OpenClawMessenger(
+    channel="telegram",
+    target="telegram:5747692163",
+    account="8606699467"  # 可选
+)
+messenger.send_text("Hello!")
+
+# 方式2: 从环境变量读取
+# export OPENCLAW_CHANNEL=telegram
+# export OPENCLAW_TARGET=telegram:5747692163
+# export OPENCLAW_ACCOUNT=8606699467
+messenger = OpenClawMessenger.from_env()
+messenger.send_text("自动读取配置")
+
+# 方式3: 从 OpenClaw Inbound Context (trusted metadata) 读取
+inbound_meta = {
+    "schema": "openclaw.inbound_meta.v1",
+    "chat_id": "telegram:5747692163",      # -> target
+    "account_id": "8606699467",              # -> account (可选)
+    "channel": "telegram",
+    "provider": "telegram",
+    "surface": "telegram",
+    "chat_type": "direct"
+}
+messenger = OpenClawMessenger.from_inbound_meta(inbound_meta)
+messenger.send_text("从 Inbound Context 读取")
+
+# 使用 OpenClawNotifier 发送通知
+notifier = OpenClawNotifier(
+    channel="telegram",
+    target="telegram:5747692163",
+    account="8606699467",
+    platform_name="小红书"
+)
+notifier.notify_start("文章标题")
 ```

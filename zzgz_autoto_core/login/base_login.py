@@ -23,7 +23,7 @@ from pathlib import Path
 from abc import ABC, abstractmethod
 from typing import Optional, Type, Dict, Any
 
-from utils import configure_logging
+from ..utils import configure_logging
 
 
 # 设置无缓冲输出，确保日志实时显示
@@ -47,7 +47,8 @@ class BaseLoginManager(ABC):
     def __init__(self, 
                  headless: bool = False,
                  channel: Optional[str] = None,
-                 user_id: Optional[str] = None,
+                 target: Optional[str] = None,
+                 account: Optional[str] = None,
                  session_key: Optional[str] = None,
                  timeout: int = 120):
         """
@@ -55,14 +56,16 @@ class BaseLoginManager(ABC):
         
         Args:
             headless: 是否使用无头模式
-            channel: 消息渠道 (feishu/wechat等)
-            user_id: 用户ID
+            channel: 消息渠道 (feishu/wechat/telegram等)
+            target: 目标用户ID (从 Inbound Context 的 chat_id 获取)
+            account: 账号ID (从 Inbound Context 的 account_id 获取，可选)
             session_key: 会话密钥
             timeout: 二维码捕获超时时间（秒）
         """
         self.headless = headless
         self.channel = channel
-        self.user_id = user_id
+        self.target = target
+        self.account = account
         self.session_key = session_key
         self.timeout = timeout
         
@@ -127,16 +130,14 @@ class BaseLoginManager(ABC):
         获取或创建消息发送器实例
         延迟初始化，只在需要时创建
         """
-        if self._messenger is None and self.user_id:
+        if self._messenger is None and self.target:
             try:
-                # 尝试从 core 导入
-                core_utils = Path(__file__).parent.parent / "utils"
-                if str(core_utils) not in sys.path:
-                    sys.path.insert(0, str(core_utils))
-                from openclaw_messaging import OpenClawMessenger
+                # 从相对路径导入
+                from ..utils.openclaw_messaging import OpenClawMessenger
                 self._messenger = OpenClawMessenger(
                     channel=self.channel,
-                    user_id=self.user_id,
+                    target=self.target,
+                    account=self.account,
                     session_key=self.session_key
                 )
                 print(f"✅ 消息发送器初始化成功 ({self.channel})")
@@ -223,12 +224,14 @@ class BaseLoginManager(ABC):
             
             # 步骤 2: 发送二维码给用户（可选）
             message_sent = False
-            if self.user_id and qr_path:
+            if self.target and qr_path:
                 print(f"\n🚀 步骤 2/3: 发送二维码给用户 ({self.channel})...")
-                print(f"   目标用户: {self.user_id}")
+                print(f"   目标用户: {self.target}")
+                if self.account:
+                    print(f"   账号ID: {self.account}")
                 message_sent = self.send_qr_to_user(qr_path)
             else:
-                print(f"\n⏭️  步骤 2/3: 未提供用户ID，跳过自动发送")
+                print(f"\n⏭️  步骤 2/3: 未提供目标用户ID，跳过自动发送")
                 print(f"   二维码已保存，请手动查看: {qr_path}")
             
             # 步骤 3: 等待用户扫码登录
@@ -244,7 +247,7 @@ class BaseLoginManager(ABC):
                 print(f"   🔐 认证: {login_result.get('auth_path', self.auth_path)}")
                 
                 # 发送成功通知
-                if self.user_id:
+                if self.target:
                     self.send_login_success_notification()
                 
                 return 0
@@ -253,7 +256,7 @@ class BaseLoginManager(ABC):
                 print(f"\n❌ 登录失败: {error_msg}")
                 
                 # 发送失败通知
-                if self.user_id:
+                if self.target:
                     self.send_login_failure_notification(error_msg)
                 
                 return 1
@@ -406,13 +409,16 @@ class BaseLoginManager(ABC):
         parser.add_argument('--verbose', action='store_true',
                            help='等价于 --log-level debug')
         
-        # 消息发送相关参数
+        # 消息发送相关参数（从 Inbound Context 获取）
         parser.add_argument('--channel', 
                            default=os.getenv('OPENCLAW_CHANNEL', 'feishu'),
-                           help='消息渠道（默认：feishu，或从环境变量 OPENCLAW_CHANNEL 读取）')
-        parser.add_argument('--user-id',
-                           default=os.getenv('OPENCLAW_USER_ID'),
-                           help='用户ID（或从环境变量 OPENCLAW_USER_ID 读取）')
+                           help='消息渠道（从 Inbound Context 的 channel 获取，或环境变量 OPENCLAW_CHANNEL）')
+        parser.add_argument('--target',
+                           default=os.getenv('OPENCLAW_TARGET'),
+                           help='目标用户ID（从 Inbound Context 的 chat_id 获取，或环境变量 OPENCLAW_TARGET）')
+        parser.add_argument('--account',
+                           default=os.getenv('OPENCLAW_ACCOUNT'),
+                           help='账号ID（从 Inbound Context 的 account_id 获取，可选，或环境变量 OPENCLAW_ACCOUNT）')
         parser.add_argument('--session-key',
                            default=os.getenv('OPENCLAW_SESSION_KEY'),
                            help='会话密钥（可选，从环境变量 OPENCLAW_SESSION_KEY 读取）')
@@ -429,7 +435,8 @@ class BaseLoginManager(ABC):
         instance = cls(
             headless=args.headless,
             channel=args.channel,
-            user_id=args.user_id,
+            target=args.target,
+            account=args.account,
             session_key=args.session_key
         )
         
