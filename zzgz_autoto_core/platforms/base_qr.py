@@ -98,6 +98,23 @@ class BaseQrCapturer(ABC):
         await self._page.set_viewport_size({"width": 1920, "height": 1080})
         return self._browser, self._page
     
+    async def find_qr_element_async(self, page: Page) -> Optional[any]:
+        """
+        在页面上查找二维码元素
+        
+        Args:
+            page: Playwright 页面对象
+        
+        Returns:
+            二维码元素或 None
+        """
+        qr_selector = self.get_qr_selector()
+        try:
+            qr_element = await page.query_selector(qr_selector)
+            return qr_element
+        except:
+            return None
+    
     async def capture_qr_only(self, status_dir: str = None) -> dict:
         """
         捕获二维码，保持浏览器打开等待登录
