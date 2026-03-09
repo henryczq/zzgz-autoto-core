@@ -149,4 +149,11 @@ try:
 except ImportError:
     __all__ = []
 
+# 导出路径管理器
+try:
+    from .path_manager import PathManager, get_wechat_paths, get_xhs_paths, get_xhs_search_paths
+    __all__.extend(['PathManager', 'get_wechat_paths', 'get_xhs_paths', 'get_xhs_search_paths'])
+except ImportError:
+    pass
+
 
