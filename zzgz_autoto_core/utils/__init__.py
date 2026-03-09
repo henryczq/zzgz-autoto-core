@@ -103,43 +103,69 @@ def resolve_cover_image(cover_image: str | None) -> str | None:
     return None
 
 
-def get_skill_dir() -> Path:
-    """获取 skill 根目录"""
-    # 从 __file__ 向上三级到达项目根目录 (utils -> scripts -> skill_root)
+# 导入 PathManager 用于统一路径管理
+try:
+    from .path_manager import PathManager
+    _path_manager = PathManager("zzgz-autoto-core")
+except ImportError:
+    _path_manager = None
+
+
+def get_skill_dir(skill_name: str = "zzgz-autoto-core") -> Path:
+    """
+    获取 skill 根目录
+    
+    优先使用 PathManager 统一路径管理，如果不存在则使用基于 __file__ 的备用方案
+    """
+    if _path_manager is not None:
+        return _path_manager.get_base_dir()
+    # 备用方案：从 __file__ 向上三级到达项目根目录 (utils -> zzgz_autoto_core -> 包根)
     return Path(__file__).parent.parent.parent.resolve()
 
 
-def get_data_dir() -> Path:
-    """获取数据目录 - 始终返回绝对路径"""
-    return get_skill_dir() / "data"
+def get_data_dir(skill_name: str = "zzgz-autoto-core") -> Path:
+    """
+    获取数据目录 - 始终返回绝对路径
+    
+    优先使用 PathManager 统一路径管理
+    """
+    if _path_manager is not None:
+        return _path_manager.get_data_dir()
+    return get_skill_dir(skill_name) / "data"
 
 
-def get_auth_state_path(platform: str = "xhs") -> Path:
+def get_auth_state_path(platform: str = "xhs", skill_name: str = "zzgz-autoto-core") -> Path:
     """
     获取登录态文件路径
 
     Args:
         platform: 平台标识 (xhs, wechat)
+        skill_name: skill 名称，用于 PathManager
 
     Returns:
         登录态文件路径
     """
+    if _path_manager is not None:
+        return _path_manager.get_auth_state_path(platform)
     filename = f"auth_state_{platform}.json"
-    return get_data_dir() / filename
+    return get_data_dir(skill_name) / filename
 
 
-def get_user_data_dir(platform: str = "xhs") -> Path:
+def get_user_data_dir(platform: str = "xhs", skill_name: str = "zzgz-autoto-core") -> Path:
     """
     获取浏览器用户数据目录
 
     Args:
         platform: 平台标识 (xhs, wechat)
+        skill_name: skill 名称，用于 PathManager
 
     Returns:
         用户数据目录路径
     """
+    if _path_manager is not None:
+        return _path_manager.get_browser_data_dir(platform)
     suffix = f"_{platform}" if platform != "xhs" else ""
-    return get_skill_dir() / "scripts" / f".browser_data{suffix}"
+    return get_skill_dir(skill_name) / "scripts" / f".browser_data{suffix}"
 
 
 # 导出 OpenClaw 消息相关类

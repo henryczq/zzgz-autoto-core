@@ -60,58 +60,41 @@ if ([string]::IsNullOrWhiteSpace($status)) {
     exit 0
 }
 
-# 询问是否继续
-$continue = Read-Host "是否继续提交? (y/n)"
-if ($continue -ne "y" -and $continue -ne "Y") {
-    Write-Host "❌ 操作已取消" -ForegroundColor $ColorWarning
-    exit 0
-}
-
-# 获取提交信息
+# 如果没有提交信息，使用默认信息
 if ([string]::IsNullOrWhiteSpace($Message)) {
-    Write-Host ""
-    Write-Host "💡 提示: 可以直接运行 .\git_push.ps1 \"你的提交信息\"" -ForegroundColor $ColorWarning
-    Write-Host ""
-    $Message = Read-Host "请输入提交信息"
-    
-    if ([string]::IsNullOrWhiteSpace($Message)) {
-        $Message = "Update: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
-        Write-Host "使用默认提交信息: $Message" -ForegroundColor $ColorWarning
-    }
+    $Message = "Update: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+    Write-Host "使用默认提交信息: $Message" -ForegroundColor $ColorWarning
 }
 
 # 执行 git add
 Write-Host ""
 Write-Host "📝 执行: git add ." -ForegroundColor $ColorInfo
-try {
-    git add .
-    Write-Host "✅ git add 完成" -ForegroundColor $ColorSuccess
-} catch {
-    Write-Host "❌ git add 失败: $_" -ForegroundColor $ColorError
+git add . 2>&1
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "❌ git add 失败 (exit code: $LASTEXITCODE)" -ForegroundColor $ColorError
     exit 1
 }
+Write-Host "✅ git add 完成" -ForegroundColor $ColorSuccess
 
 # 执行 git commit
 Write-Host ""
-Write-Host "📝 执行: git commit -m \"$Message\"" -ForegroundColor $ColorInfo
-try {
-    git commit -m "$Message"
-    Write-Host "✅ git commit 完成" -ForegroundColor $ColorSuccess
-} catch {
-    Write-Host "❌ git commit 失败: $_" -ForegroundColor $ColorError
+Write-Host "📝 执行: git commit -m '$Message'" -ForegroundColor $ColorInfo
+git commit -m "$Message" 2>&1
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "❌ git commit 失败 (exit code: $LASTEXITCODE)" -ForegroundColor $ColorError
     exit 1
 }
+Write-Host "✅ git commit 完成" -ForegroundColor $ColorSuccess
 
 # 执行 git push
 Write-Host ""
 Write-Host "📝 执行: git push" -ForegroundColor $ColorInfo
-try {
-    git push
-    Write-Host "✅ git push 完成" -ForegroundColor $ColorSuccess
-} catch {
-    Write-Host "❌ git push 失败: $_" -ForegroundColor $ColorError
+git push 2>&1
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "❌ git push 失败 (exit code: $LASTEXITCODE)" -ForegroundColor $ColorError
     exit 1
 }
+Write-Host "✅ git push 完成" -ForegroundColor $ColorSuccess
 
 Write-Host ""
 Write-Host "========================================" -ForegroundColor $ColorSuccess
