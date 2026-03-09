@@ -49,10 +49,27 @@ def _scrape_wechat(page, output_root: Path, max_images: int):
     """抓取微信公众号文章 - 复用 wechat.py 的逻辑"""
     print("使用微信公众号抓取策略")
     
-    # 等待标题加载
+    # 等待页面完全加载
+    print("  等待页面加载...")
     try:
-        page.wait_for_selector("#activity-name", timeout=10000)
+        page.wait_for_load_state("networkidle", timeout=20000)
+    except:
+        print("  networkidle 超时，继续等待 DOM...")
+    
+    # 额外等待，确保 JavaScript 渲染完成
+    page.wait_for_timeout(3000)
+    
+    # 等待标题加载（增加超时时间）
+    try:
+        page.wait_for_selector("#activity-name", timeout=20000)
     except Exception as e:
+        # 保存截图用于调试
+        debug_dir = output_root / "debug"
+        debug_dir.mkdir(parents=True, exist_ok=True)
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        screenshot_path = debug_dir / f"wechat_error_{timestamp}.png"
+        page.screenshot(path=screenshot_path, full_page=True)
+        print(f"  已保存错误截图: {screenshot_path}")
         raise Exception(f"未找到微信文章标题: {e}")
     
     # 获取标题
