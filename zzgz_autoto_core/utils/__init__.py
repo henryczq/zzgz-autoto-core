@@ -118,7 +118,7 @@ def get_skill_dir(skill_name: str = "zzgz-autoto-core") -> Path:
     优先使用 PathManager 统一路径管理，如果不存在则使用基于 __file__ 的备用方案
     """
     if _path_manager is not None:
-        return _path_manager.get_base_dir()
+        return _path_manager.get_skill_path()
     # 备用方案：从 __file__ 向上三级到达项目根目录 (utils -> zzgz_autoto_core -> 包根)
     return Path(__file__).parent.parent.parent.resolve()
 
@@ -145,9 +145,9 @@ def get_auth_state_path(platform: str = "xhs", skill_name: str = "zzgz-autoto-co
     Returns:
         登录态文件路径
     """
-    if _path_manager is not None:
-        return _path_manager.get_auth_state_path(platform)
     filename = f"auth_state_{platform}.json"
+    if _path_manager is not None:
+        return _path_manager.get_auth_state_path(filename)
     return get_data_dir(skill_name) / filename
 
 
