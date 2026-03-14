@@ -93,11 +93,9 @@ Write-Host "git commit OK" -ForegroundColor $ColorSuccess
 # Execute git push
 Write-Host ""
 Write-Host "Execute: git push" -ForegroundColor $ColorInfo
-$pushOutput = git push 2>&1
+# Use cmd to avoid PowerShell error handling issues
+cmd /c "git push 2>&1"
 $pushExitCode = $LASTEXITCODE
-# Filter out false error messages from git push output
-$filteredOutput = $pushOutput | Where-Object { $_ -notmatch "RemoteException|NotSpecified|CategoryInfo|FullyQualifiedErrorId" }
-if ($filteredOutput) { Write-Host $filteredOutput }
 if ($pushExitCode -ne 0) {
     Write-Host "git push failed (exit code: $pushExitCode)" -ForegroundColor $ColorError
     exit 1
