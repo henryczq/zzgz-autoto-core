@@ -95,7 +95,9 @@ Write-Host ""
 Write-Host "Execute: git push" -ForegroundColor $ColorInfo
 $pushOutput = git push 2>&1
 $pushExitCode = $LASTEXITCODE
-Write-Host $pushOutput
+# Filter out false error messages from git push output
+$filteredOutput = $pushOutput | Where-Object { $_ -notmatch "RemoteException|NotSpecified|CategoryInfo|FullyQualifiedErrorId" }
+if ($filteredOutput) { Write-Host $filteredOutput }
 if ($pushExitCode -ne 0) {
     Write-Host "git push failed (exit code: $pushExitCode)" -ForegroundColor $ColorError
     exit 1
