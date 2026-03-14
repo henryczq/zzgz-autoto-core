@@ -131,6 +131,19 @@ class PathManager:
         """
         return self.get_status_dir() / filename
     
+    def get_browser_data_dir(self, platform: str = "xhs") -> Path:
+        """
+        获取浏览器用户数据目录
+        
+        Args:
+            platform: 平台标识 (xhs, wechat)
+        
+        Returns:
+            浏览器用户数据目录路径
+        """
+        suffix = f"_{platform}" if platform != "xhs" else ""
+        return self.skill_path / "scripts" / f".browser_data{suffix}"
+    
     def __repr__(self) -> str:
         return f"PathManager(skill='{self.skill_name}', base='{self.base_path}')"
 

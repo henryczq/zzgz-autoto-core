@@ -69,9 +69,11 @@ if ([string]::IsNullOrWhiteSpace($Message)) {
 # Execute git add
 Write-Host ""
 Write-Host "Execute: git add ." -ForegroundColor $ColorInfo
-git add . 2>&1
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "git add failed (exit code: $LASTEXITCODE)" -ForegroundColor $ColorError
+$addOutput = git add . 2>&1
+$addExitCode = $LASTEXITCODE
+if ($addOutput) { Write-Host $addOutput }
+if ($addExitCode -ne 0) {
+    Write-Host "git add failed (exit code: $addExitCode)" -ForegroundColor $ColorError
     exit 1
 }
 Write-Host "git add OK" -ForegroundColor $ColorSuccess
@@ -79,9 +81,11 @@ Write-Host "git add OK" -ForegroundColor $ColorSuccess
 # Execute git commit
 Write-Host ""
 Write-Host "Execute: git commit -m '$Message'" -ForegroundColor $ColorInfo
-git commit -m "$Message" 2>&1
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "git commit failed (exit code: $LASTEXITCODE)" -ForegroundColor $ColorError
+$commitOutput = git commit -m "$Message" 2>&1
+$commitExitCode = $LASTEXITCODE
+Write-Host $commitOutput
+if ($commitExitCode -ne 0) {
+    Write-Host "git commit failed (exit code: $commitExitCode)" -ForegroundColor $ColorError
     exit 1
 }
 Write-Host "git commit OK" -ForegroundColor $ColorSuccess
@@ -89,9 +93,11 @@ Write-Host "git commit OK" -ForegroundColor $ColorSuccess
 # Execute git push
 Write-Host ""
 Write-Host "Execute: git push" -ForegroundColor $ColorInfo
-git push 2>&1
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "git push failed (exit code: $LASTEXITCODE)" -ForegroundColor $ColorError
+$pushOutput = git push 2>&1
+$pushExitCode = $LASTEXITCODE
+Write-Host $pushOutput
+if ($pushExitCode -ne 0) {
+    Write-Host "git push failed (exit code: $pushExitCode)" -ForegroundColor $ColorError
     exit 1
 }
 Write-Host "git push OK" -ForegroundColor $ColorSuccess

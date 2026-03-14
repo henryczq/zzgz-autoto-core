@@ -33,5 +33,6 @@ Homepage = "https://github.com/henryczq/zzgz-autoto-core"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["zzgz_autoto_core*"]
+# 确保下面的名字和你代码文件夹名字完全一致
+include = ["zzgz_autoto_core", "zzgz_autoto_core.*"] 
 exclude = ["zzgz_autoto_core.browser_data*", "zzgz_autoto_core/.browser_data*"]
